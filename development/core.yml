@@ -1,0 +1,92 @@
+networks:
+  development_backend:
+    external: true
+  development_frontend:
+    external: true
+  development_proxy:
+    external: true
+
+volumes:
+  development_elasticsearch_data:
+    external: true
+  development_mysql_data:
+    external: true
+  development_redis_data:
+    external: true
+  development_proxy_data:
+    external: true
+  development_letsencrypt_data:
+    external: true
+
+services:
+  proxy:
+    image: jc21/nginx-proxy-manager:latest
+    volumes:
+      - development_proxy_data:/data
+      - development_letsencrypt_data:/etc/letsencrypt
+    ports:
+      - 80:80
+      - 443:443
+      - 81:81
+    networks:
+      - development_proxy
+      - development_backend
+      - development_frontend
+
+  mysql:
+    image: mysql:8.4.2
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 3G
+    env_file:
+      - .env
+    volumes:
+      - development_mysql_data:/var/lib/mysql
+    networks:
+      - development_backend
+
+  redis:
+    image: redis:7.4-alpine
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+    volumes:
+      - development_redis_data:/data
+    networks:
+      - development_backend
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 3G
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    env_file:
+      - .env
+    environment:
+      - ELASTIC_PASSWORD=j9ssaJ4D1HdOjId3
+      - "cluster.name=elastic-backend-development"
+      - "node.name=elastic-development-master"
+      - "xpack.ml.enabled=false"
+      - "xpack.watcher.enabled=false"
+      - "bootstrap.memory_lock=false"
+      - "discovery.type=single-node"
+      - "xpack.security.enabled=false"
+      - "thread_pool.search.size=2"
+      - "thread_pool.write.size=2"
+    volumes:
+      - development_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - development_backend
